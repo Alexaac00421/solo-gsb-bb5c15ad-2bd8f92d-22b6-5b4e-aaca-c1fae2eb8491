@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import type { PlanParams, PlanResult, ProjectMeta, TrackInput } from './types';
+import type { PitchMode, PlanParams, PlanResult, ProjectMeta, TrackInput } from './types';
 import ParamsForm from './components/ParamsForm';
 import TrackEditor from './components/TrackEditor';
 import ResultsView from './components/ResultsView';
@@ -11,20 +11,32 @@ const defaultParams: PlanParams = {
   innerRadiusMm: 60,
   gapWidthMm: 1.2,
   minPitchUm: 80,
+  mode: 'constant',
 };
 
 const defaultTracks: TrackInput[] = [
-  { name: '序曲 Overture', durationSec: 312 },
-  { name: '霓虹航道', durationSec: 245 },
-  { name: '慢速旋转', durationSec: 198 },
-  { name: '沟槽之间', durationSec: 167 },
-  { name: '半径之外', durationSec: 284 },
-  { name: '留白', durationSec: 176 },
-  { name: '内圈回声', durationSec: 233 },
-  { name: '四十五转', durationSec: 205 },
-  { name: '静噪', durationSec: 149 },
-  { name: '终曲:归位', durationSec: 368 },
+  { name: '序曲 Overture', durationSec: 312, dynamicCoeff: 1 },
+  { name: '霓虹航道', durationSec: 245, dynamicCoeff: 1.1 },
+  { name: '慢速旋转', durationSec: 198, dynamicCoeff: 0.9 },
+  { name: '沟槽之间', durationSec: 167, dynamicCoeff: 1 },
+  { name: '半径之外', durationSec: 284, dynamicCoeff: 1.2 },
+  { name: '留白', durationSec: 176, dynamicCoeff: 0.8 },
+  { name: '内圈回声', durationSec: 233, dynamicCoeff: 1 },
+  { name: '四十五转', durationSec: 205, dynamicCoeff: 1.1 },
+  { name: '静噪', durationSec: 149, dynamicCoeff: 0.7 },
+  { name: '终曲:归位', durationSec: 368, dynamicCoeff: 1.3 },
 ];
+
+/** 保证可变模式下每首曲目都带合法的动态系数(旧数据/手动切换模式时兜底) */
+function withCoeffs(tracks: TrackInput[]): TrackInput[] {
+  return tracks.map((t) => {
+    const c = Number(t.dynamicCoeff);
+    return {
+      ...t,
+      dynamicCoeff: Number.isFinite(c) && c >= 0.5 && c <= 2 ? c : 1,
+    };
+  });
+}
 
 export default function App() {
   const [tracks, setTracks] = useState<TrackInput[]>(defaultTracks);
@@ -34,12 +46,22 @@ export default function App() {
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
+  const mode: PitchMode = params.mode === 'variable' ? 'variable' : 'constant';
+
   const refreshProjects = () =>
     api.listProjects().then(setProjects).catch(() => undefined);
 
   useEffect(() => {
     refreshProjects();
   }, []);
+
+  const changeParams = (next: PlanParams) => {
+    // 切入可变模式时补齐缺失的动态系数
+    if (next.mode === 'variable' && params.mode !== 'variable') {
+      setTracks((ts) => withCoeffs(ts));
+    }
+    setParams(next);
+  };
 
   // 输入变化后自动重新计算(防抖 250ms)
   useEffect(() => {
@@ -58,8 +80,9 @@ export default function App() {
   const loadProject = async (id: number) => {
     try {
       const p = await api.getProject(id);
-      setTracks(p.payload.tracks);
-      setParams(p.payload.params);
+      const loadedMode = p.payload.params.mode === 'variable' ? 'variable' : 'constant';
+      setParams({ ...p.payload.params, mode: loadedMode });
+      setTracks(loadedMode === 'variable' ? withCoeffs(p.payload.tracks) : p.payload.tracks);
       setSelectedId(id);
     } catch (e) {
       setError((e as Error).message);
@@ -70,7 +93,12 @@ export default function App() {
     const name = window.prompt('方案名称:', '我的分面方案');
     if (!name?.trim()) return;
     try {
-      const saved = await api.saveProject(name.trim(), tracks, params);
+      // 恒定模式不写动态系数,保持载荷整洁;可变模式保证系数齐全
+      const payloadTracks =
+        mode === 'variable'
+          ? withCoeffs(tracks)
+          : tracks.map(({ dynamicCoeff: _c, ...rest }) => rest);
+      const saved = await api.saveProject(name.trim(), payloadTracks, params);
       await refreshProjects();
       setSelectedId(saved.id);
     } catch (e) {
@@ -120,8 +148,8 @@ export default function App() {
 
       <main>
         <div className="left">
-          <ParamsForm params={params} onChange={setParams} />
-          <TrackEditor tracks={tracks} onChange={setTracks} />
+          <ParamsForm params={params} onChange={changeParams} />
+          <TrackEditor tracks={tracks} onChange={setTracks} mode={mode} />
         </div>
         <div className="right">{result && <ResultsView result={result} />}</div>
       </main>
