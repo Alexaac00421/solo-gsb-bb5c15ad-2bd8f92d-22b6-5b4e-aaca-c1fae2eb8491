@@ -119,6 +119,55 @@ main {
   gap: 12px;
 }
 
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.mode-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mode-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.mode-label {
+  font-weight: 600;
+}
+
+.mode-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.coeff-input {
+  max-width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.coeff-input.invalid {
+  border-color: var(--bad);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -340,4 +389,46 @@ details summary {
 .pitch-row td {
   color: var(--accent) !important;
   font-weight: 600;
+}
+
+.radial-details {
+  margin-top: 8px;
+}
+
+.radial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.radial-table th {
+  text-align: right;
+  color: var(--muted);
+  font-weight: normal;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.radial-table th:first-child {
+  text-align: left;
+}
+
+.radial-table td {
+  padding: 3px 6px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  border-bottom: 1px dashed var(--border);
+}
+
+.radial-table .rl-name {
+  text-align: left;
+  white-space: normal;
+}
+
+.radial-table .gap-row td {
+  color: var(--muted);
+  font-style: italic;
 }
